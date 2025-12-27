@@ -28,7 +28,7 @@ pnpm dev
 ### 切换版本
 
 ```bash
-# 调试 React 19
+# 调试 React 19（推荐）
 git checkout v19.0.0
 
 # 调试 React 18
@@ -142,6 +142,78 @@ console.log(root.current);  // 当前 Fiber 树
 | Activity | ❌ | ✅ |
 
 建议从 **v19.0.0** 开始学习，这是最新的稳定版本。
+
+## v19.3.0 分支：为什么使用预构建产物？
+
+项目还有一个 `v19.3.0` 分支，但它的调试方式与 v18/v19.0.0 不同。
+
+### Flow Component Syntax
+
+React 19.1+ 源码开始使用 Flow 的 **Component Syntax** 新特性：
+
+```javascript
+// Flow Component Syntax（React 源码中的写法）
+component MyComponent(name: string, age: number) {
+  return <div>{name}: {age}</div>;
+}
+
+// 等价于传统函数组件
+function MyComponent({ name, age }: { name: string, age: number }) {
+  return <div>{name}: {age}</div>;
+}
+```
+
+这是 Flow 团队为 React 设计的语法糖，可以：
+- 更简洁地声明组件 props 类型
+- 自动推断 props 的只读性
+- 更好的类型检查
+
+### Babel 无法解析
+
+问题在于，Babel 的 `@babel/plugin-transform-flow-strip-types` 插件无法识别这种新语法：
+
+```
+SyntaxError: Unexpected token, expected "("
+  component MyComponent(name: string) {
+            ^
+```
+
+Babel 只能剥离传统的 Flow 类型注解，不支持 `component` 关键字。
+
+### v19.3.0 的解决方案
+
+v19.3.0 分支使用 React 官方预构建的 development 版本：
+
+```
+src/packages/
+├── react/cjs/
+│   └── react.development.js      # 预构建产物
+├── react-dom/cjs/
+│   └── react-dom.development.js
+└── scheduler/cjs/
+    └── scheduler.development.js
+```
+
+webpack alias 直接指向这些构建产物：
+
+```javascript
+alias: {
+  react: path.join(paths.reactSrc, "react"),
+  "react-dom": path.join(paths.reactSrc, "react-dom"),
+  scheduler: path.join(paths.reactSrc, "scheduler"),
+}
+```
+
+### 调试体验对比
+
+| 特性 | v19.0.0（源码） | v19.3.0（预构建） |
+|-----|----------------|------------------|
+| 代码可读性 | 原始源码，清晰 | 构建后代码，可读性降低 |
+| 断点调试 | 精确到源码行 | 在构建产物中调试 |
+| 修改源码 | ✅ 可修改测试 | ❌ 不可修改 |
+| Flow 类型 | 运行时由 Babel 剥离 | 已在构建时剥离 |
+
+**建议**：学习 React 源码推荐使用 `v19.0.0` 分支，v19.0.0 与 v19.3.0 的核心逻辑差异不大，但调试体验更好。
 
 ## 常见问题
 
