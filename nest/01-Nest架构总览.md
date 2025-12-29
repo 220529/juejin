@@ -403,6 +403,60 @@ export async function callModuleInitHook(module: Module): Promise<void> {
 }
 ```
 
+## ExceptionsZone 异常处理
+
+源码中有一个重要的细节：整个初始化过程被 `ExceptionsZone` 包裹：
+
+```typescript
+// packages/core/nest-factory.ts
+await ExceptionsZone.asyncRun(
+  async () => {
+    await dependenciesScanner.scan(module);
+    await instanceLoader.createInstancesOfDependencies();
+    dependenciesScanner.applyApplicationProviders();
+  },
+  teardown,
+  this.autoFlushLogs,
+);
+```
+
+`ExceptionsZone` 提供了统一的异常处理机制，确保启动过程中的错误能被正确捕获和处理。
+
+## Proxy 代理包装
+
+`NestFactory.create()` 返回的不是原始的 `NestApplication` 实例，而是一个 Proxy 包装：
+
+```typescript
+// packages/core/nest-factory.ts
+private createAdapterProxy<T>(app: NestApplication, adapter: HttpServer): T {
+  const proxy = new Proxy(app, {
+    get: (receiver: Record<string, any>, prop: string) => {
+      const mapToProxy = (result: unknown) => {
+        return result instanceof Promise
+          ? result.then(mapToProxy)
+          : result instanceof NestApplication
+            ? proxy
+            : result;
+      };
+
+      // 如果属性不在 app 上但在 adapter 上，代理到 adapter
+      if (!(prop in receiver) && prop in adapter) {
+        return (...args: unknown[]) => {
+          const result = this.createExceptionZone(adapter, prop)(...args);
+          return mapToProxy(result);
+        };
+      }
+      // ...
+    },
+  });
+  return proxy as unknown as T;
+}
+```
+
+这个 Proxy 实现了两个功能：
+1. **方法代理**：将 HTTP 适配器的方法代理到应用实例
+2. **链式调用**：返回 `NestApplication` 的方法会返回 proxy 本身，支持链式调用
+
 ## 总结
 
 NestJS 启动流程的核心步骤：
@@ -411,7 +465,8 @@ NestJS 启动流程的核心步骤：
 2. **扫描模块**：`DependenciesScanner` 递归扫描模块依赖树
 3. **实例化**：`InstanceLoader` + `Injector` 创建所有实例
 4. **生命周期**：触发 `onModuleInit`、`onApplicationBootstrap`
-5. **返回应用**：`NestApplication` 实例，通过 Proxy 包装
+5. **异常处理**：`ExceptionsZone` 统一捕获启动异常
+6. **返回应用**：`NestApplication` 实例，通过 Proxy 包装实现方法代理
 
 下一篇我们将深入分析依赖注入系统的实现。
 
