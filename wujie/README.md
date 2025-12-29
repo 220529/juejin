@@ -2,7 +2,7 @@
 
 ## 专栏介绍
 
-深入剖析腾讯开源微前端框架 Wujie 的设计思想与实现原理。从 iframe 沙箱创建、Shadow DOM 样式隔离、Proxy 代理机制，到路由同步、跨应用通信和插件系统，带你逐行解读源码，理解 Web Components + iframe 双容器架构的精妙设计。适合想深入理解微前端隔离机制的前端开发者。
+深入剖析腾讯开源微前端框架 Wujie 源码，涵盖 iframe 沙箱、Shadow DOM 隔离、Proxy 代理、路由同步、通信机制和插件系统，带你理解 Web Components + iframe 双容器架构的设计精髓。
 
 ## 核心架构
 
