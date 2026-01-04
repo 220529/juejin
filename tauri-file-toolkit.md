@@ -233,7 +233,7 @@ useEffect(() => {
 
 **解决方案**：图标设计时直接使用带背景色的 squircle 形状，不要用透明背景。让 AI 生成时就指定"squircle 形状，带背景色"。
 
-### 2. DMG 打包失败
+### 2. DMG 打包失败 (macOS)
 
 执行 `pnpm tauri build` 时报错：
 
@@ -310,7 +310,7 @@ if current > last {
 }
 ```
 
-### 7. Dev 模式 Dock 显示英文名
+### 7. Dev 模式 Dock 显示英文名 (macOS)
 
 开发模式下 macOS Dock 显示的是 Cargo 包名（英文），不是配置的中文名。
 
@@ -328,18 +328,28 @@ if current > last {
 
 **原因**：Tauri 的 `externalBin` 在开发模式和打包后的路径不同。开发时在 `src-tauri/binaries/`，打包后在可执行文件同目录，且文件名不带平台后缀。
 
-**解决方案**：封装一个统一的路径查找函数：
+**解决方案**：封装一个统一的路径查找函数，按优先级查找：
 
 ```rust
-pub fn get_ffmpeg_path(app: &AppHandle) -> String {
-    // 1. 先找可执行文件同目录（打包后）
-    if let Ok(exe_dir) = std::env::current_exe().and_then(|p| Ok(p.parent().unwrap().to_path_buf())) {
-        let path = exe_dir.join("ffmpeg");
-        if path.exists() { return path.to_string_lossy().to_string(); }
+pub fn get_ffmpeg_path(app: &AppHandle) -> PathBuf {
+    let exe_name = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    
+    // 1. 可执行文件同目录（打包后）
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let path = exe_dir.join(exe_name);
+            if path.exists() { return path; }
+        }
     }
-    // 2. 再找 resource_dir（开发模式）
-    // 3. 最后回退到系统 PATH
-    "ffmpeg".to_string()
+    
+    // 2. Tauri resource_dir（开发模式）
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let path = resource_dir.join(exe_name);
+        if path.exists() { return path; }
+    }
+    
+    // 3. 回退到系统 PATH
+    PathBuf::from(exe_name)
 }
 ```
 
@@ -350,6 +360,25 @@ pub fn get_ffmpeg_path(app: &AppHandle) -> String {
 **原因**：workflow 配置了 `releaseDraft: true`，新版本都是草稿状态。
 
 **解决方案**：改成 `releaseDraft: false`，或者手动去 Release 页面发布草稿。
+
+### 11. Windows 开发环境配置
+
+Windows 上开发 Tauri 需要额外安装 MSVC 编译工具链，否则 `cargo build` 会报错找不到链接器：
+
+```
+error: linker `link.exe` not found
+```
+
+**解决方案**：
+
+```powershell
+# 安装 Visual Studio Build Tools（约 2-3GB）
+winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+另外 FFmpeg 需要手动下载 Windows 版本（推荐 [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)），解压后重命名放到 `src-tauri/binaries/`：
+- `ffmpeg-x86_64-pc-windows-msvc.exe`
+- `ffprobe-x86_64-pc-windows-msvc.exe`
 
 ## 打包发布
 
