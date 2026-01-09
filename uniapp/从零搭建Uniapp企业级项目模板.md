@@ -26,7 +26,10 @@ uniapp-template/
 │   │   └── token.js
 │   ├── utils/              # 工具函数
 │   │   ├── env.js          # 环境管理
-│   │   └── cache.js        # 页面缓存
+│   │   ├── page.js         # 页面工具（缓存、跳转）
+│   │   ├── eventBus.js     # 事件总线
+│   │   ├── file.js         # 文件操作
+│   │   └── index.js        # 通用工具
 │   ├── components/         # 通用组件
 │   ├── pages/              # 页面
 │   ├── store/              # 状态管理
@@ -283,25 +286,80 @@ function isReleaseVersion() {
 
 ---
 
-## 六、页面缓存
+## 六、页面工具
 
-解决小程序 URL 参数长度限制（约 2KB）。
+解决小程序 URL 参数长度限制（约 2KB），提供缓存传参和跳转封装。
 
 ```javascript
-import { savePageCache, getPageCache, clearPageCache } from '@/utils/cache.js';
+import { navigateTo, getPageCache, clearPageCache } from '@/utils/page.js';
 
-// 页面 A：保存数据后跳转
-savePageCache('/pages/detail', { orderId: 123, items: [...] });
-uni.navigateTo({ url: '/pages/detail' });
+// 页面 A：带缓存跳转（推荐，适合大数据）
+navigateTo('/pages/detail/index', { orderId: 123, items: [...] });
 
 // 页面 B：获取数据
-const data = getPageCache('/pages/detail');
-clearPageCache('/pages/detail');  // 用完清理
+const data = getPageCache();
+clearPageCache();  // 用完清理
+```
+
+也支持 URL 参数方式（适合小数据）：
+
+```javascript
+import { navigateWithParams, getUrlParams } from '@/utils/page.js';
+
+// 跳转
+navigateWithParams('/pages/detail/index', { id: 123 });
+
+// 获取参数
+const { id } = getUrlParams();
 ```
 
 ---
 
-## 七、样式管理
+## 七、通用组件
+
+### 7.1 FileUpload 文件上传
+
+封装了图片/视频上传组件，支持预览、删除、大小限制等功能。
+
+```vue
+<template>
+  <FileUpload
+    v-model="fileList"
+    :max-count="9"
+    accept="image,video"
+    placeholder="上传图片"
+    @success="onUploadSuccess"
+  />
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import FileUpload from '@/components/FileUpload/index.vue';
+
+const fileList = ref([]);
+
+const onUploadSuccess = (url) => {
+  console.log('上传成功:', url);
+};
+</script>
+```
+
+Props：
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| v-model | Array | [] | 文件列表 |
+| maxCount | Number | 9 | 最大数量 |
+| accept | String | 'image' | 文件类型：image / video / image,video |
+| maxSize | Number | 10MB | 文件大小限制 |
+| uploadUrl | String | '/api/upload' | 上传接口 |
+| disabled | Boolean | false | 禁用状态 |
+
+组件内部复用了 `uploadApi`，保持上传逻辑统一。
+
+---
+
+## 八、样式管理
 
 ### 7.1 SCSS 变量
 
@@ -328,7 +386,7 @@ css: {
 
 ---
 
-## 八、使用模板
+## 九、使用模板
 
 ### 8.1 克隆项目
 
@@ -363,7 +421,8 @@ pnpm run dev:h5         # H5
 | 请求层 | 封装、拦截器、取消机制、防重复 |
 | 认证 | Token 管理、自动刷新、并发控制 |
 | 环境 | 多环境切换、线上锁定 |
-| 工具 | 页面缓存、样式变量 |
+| 工具 | 页面缓存/跳转、事件总线、文件操作 |
+| 组件 | FileUpload 文件上传 |
 
 开箱即用，新项目直接基于模板开发即可。
 
