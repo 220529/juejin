@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "../../cpm/cpm_web"
+		},
+		{
+			"path": "../../t1/t1-code"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"typescript.tsdk": "node_modules/typescript/lib",
+		"explorer.fileNesting.expand": false,
+		"terminal.integrated.scrollback": 10000
+	}
+}
